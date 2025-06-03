@@ -102,7 +102,7 @@ void loop(){
         encenderColor(false, false, false); // apagar
         return;
     }
-    
+
     // Verifica checksum
     //crc.restart();
     byte checksum = 0;
@@ -136,6 +136,8 @@ void loop(){
         recibidosTotales++;
         // Indicador visual
         Serial.println("Paquete recibido!");
+        Serial.println("Faltan: ");
+        Serial.println(TOTAL_PAQUETES - recibidosTotales);
         encenderColor(false, true, false); // verde
         delay(100);
         encenderColor(false, false, false); // apagar
