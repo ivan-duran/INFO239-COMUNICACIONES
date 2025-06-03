@@ -1,6 +1,7 @@
 #include <VirtualWire.h>
 #include <CRC.h>
 
+// RECEPTOR
 
 #define TOTAL_PAQUETES 43
 
@@ -103,13 +104,16 @@ void loop(){
     }
     
     // Verifica checksum
+    //crc.restart();
+    byte checksum = 0;
     for (int i = 0; i < 6; i++) {
-        crc.add(buf[i]);
+        checksum += buf[i];
+        //crc.add(buf[i]);
     }
-    uint8_t result = crc.getCRC();
+    //uint8_t result = crc.getCRC();
 
-    if (buf[6] != result)) {
-        Serial.println("Checksum inválido");
+    if (buf[6] != (checksum % 256)) {
+        //Serial.println("Checksum inválido");
         encenderColor(true, false, false); // rojo
         delay(100);
         encenderColor(false, false, false); // apagar
@@ -131,6 +135,7 @@ void loop(){
         recibido[secuencia] = true;
         recibidosTotales++;
         // Indicador visual
+        Serial.println("Paquete recibido!");
         encenderColor(false, true, false); // verde
         delay(100);
         encenderColor(false, false, false); // apagar
@@ -140,7 +145,7 @@ void loop(){
     if (recibidosTotales == TOTAL_PAQUETES) {
         convertirA32x32();
         imprimirImagen();
-        encederColor(false, true, false);
+        encenderColor(false, true, false);
         Serial.println("Imagen completa.");
         while (1);  // Detener loop
     }
