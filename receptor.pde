@@ -1,6 +1,11 @@
 #include <VirtualWire.h>
+#include <CRC.h>
+
 
 #define TOTAL_PAQUETES 43
+
+// CRC8
+CRC8 crc;
 
 // Pines LED RGB
 const int pinRojo = 9;
@@ -8,7 +13,7 @@ const int pinVerde = 10;
 const int pinAzul = 11;
 
 // Configuración de recepción
-const byte ID_ESPERADO = 0x02;
+const uint8_t ID_ESPERADO = 0x02;
 #define TOTAL_PAQUETES 43
 
 // Matriz para reconstruir la imagen y control de recepción
@@ -41,22 +46,18 @@ void convertirA32x32() {
   }
 }
 
+void encenderColor(bool r, bool g, bool b) {
+  digitalWrite(pinRojo, r ? HIGH : LOW);
+  digitalWrite(pinVerde, g ? HIGH : LOW);
+  digitalWrite(pinAzul, b ? HIGH : LOW);
+}
+
 void imprimirImagen() {
-  Serial.println("\nImagen reconstruida:\n");
-  int bitsMostrados = 0;
-
-  for (int i = 0; i < TOTAL_PAQUETES && bitsMostrados < 1024; i++) {
-    for (int j = 0; j < 3; j++) {
-      for (int bit = 7; bit >= 0; bit--) {
-        if (bitsMostrados >= 1024) break;
-
-        bool pixel = imagenFinal[i][j];
-        Serial.print(pixel ? "█" : " ");
-
-        bitsMostrados++;
-        if (bitsMostrados % 32 == 0) Serial.println();  // Nueva línea cada 32 bits
-      }
+  for (int i = 0; i < 32; i++) {
+    for (int j = 0; j < 32; j++) {
+      Serial.print(imagenFinal[i][j] ? "█" : " ");
     }
+    Serial.println();
   }
 }
 
@@ -74,12 +75,6 @@ void setup(){
     vw_rx_start();
 
     int recibidos_totales = 0;
-}
-
-void encenderColor(bool r, bool g, bool b) {
-  digitalWrite(pinRojo, r ? HIGH : LOW);
-  digitalWrite(pinVerde, g ? HIGH : LOW);
-  digitalWrite(pinAzul, b ? HIGH : LOW);
 }
 
 void loop(){
@@ -108,14 +103,14 @@ void loop(){
     }
     
     // Verifica checksum
-    byte checksum = 0;
     for (int i = 0; i < 6; i++) {
-        checksum += buf[i];
+        crc.add(buf[i]);
     }
+    uint8_t result = crc.getCRC();
 
-    if (buf[6] != (checksum % 256)) {
+    if (buf[6] != result)) {
         Serial.println("Checksum inválido");
-        encenderColor(false, false, true); // azul
+        encenderColor(true, false, false); // rojo
         delay(100);
         encenderColor(false, false, false); // apagar
         return;
@@ -123,7 +118,8 @@ void loop(){
 
     if (secuencia >= TOTAL_PAQUETES) {
       Serial.println("Cabecera fuera de rango");
-      encenderColor(false, false, true); delay(100);
+      encenderColor(true, false, false); //rojo
+      delay(100);
       encenderColor(false, false, false);
       return;
     }
@@ -144,8 +140,8 @@ void loop(){
     if (recibidosTotales == TOTAL_PAQUETES) {
         convertirA32x32();
         imprimirImagen();
+        encederColor(false, true, false);
         Serial.println("Imagen completa.");
         while (1);  // Detener loop
     }
-
 }
