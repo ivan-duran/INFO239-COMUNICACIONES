@@ -1,5 +1,7 @@
 #include <VirtualWire.h>
 #include <CRC.h>
+#include <LiquidCrystal_I2C.h>
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // RECEPTOR
 
@@ -10,8 +12,8 @@ CRC8 crc;
 
 // Pines LED RGB
 const int pinRojo = 9;
-const int pinVerde = 10;
-const int pinAzul = 11;
+const int pinVerde = 11;
+const int pinAzul = 10;
 
 // Configuración de recepción
 const uint8_t ID_ESPERADO = 0x02;
@@ -70,6 +72,11 @@ void setup(){
     pinMode(pinVerde, OUTPUT);
     pinMode(pinAzul, OUTPUT);
 
+    lcd.init();
+    lcd.backlight();
+    lcd.setCursor(0, 0);
+    lcd.print("Esperando datos");
+
     vw_set_ptt_inverted(true);
     vw_setup(2000);
     vw_set_rx_pin(2);
@@ -82,73 +89,85 @@ void loop(){
     uint8_t buf[VW_MAX_MESSAGE_LEN];
     uint8_t buflen = VW_MAX_MESSAGE_LEN;
 
-    if (vw_get_message(buf, &buflen)){
+    if (vw_get_message(buf, &buflen)) {
         if (buflen != 7){
-          Serial.println("Otro paquete nada que ver");
-          encenderColor(true, false, false); // rojo
-          delay(100);
-          encenderColor(false, false, false); // apagar
-          return;
+            Serial.println("Otro paquete nada que ver");
+            encenderColor(true, false, false); // rojo
+            delay(100);
+            encenderColor(false, false, false); // apagar
+            return;
         }
-    }
-    byte secuencia = buf[0];
 
-    
-    // Verifica que el ID receptor coincida
-    if (buf[2] != ID_ESPERADO) {
-        Serial.println("ID receptor no coincide");
-        encenderColor(true, false, false); // rojo
-        delay(100);
-        encenderColor(false, false, false); // apagar
-        return;
-    }
+        byte secuencia = buf[0];
 
-    // Verifica checksum
-    //crc.restart();
-    byte checksum = 0;
-    for (int i = 0; i < 6; i++) {
-        checksum += buf[i];
-        //crc.add(buf[i]);
-    }
-    //uint8_t result = crc.getCRC();
+        // Verifica que el ID receptor coincida
+        if (buf[2] != ID_ESPERADO) {
+            Serial.println("ID receptor no coincide");
+            encenderColor(true, false, false); // rojo
+            delay(100);
+            encenderColor(false, false, false); // apagar
+            return;
+        }
 
-    if (buf[6] != (checksum % 256)) {
-        //Serial.println("Checksum inválido");
-        encenderColor(true, false, false); // rojo
-        delay(100);
-        encenderColor(false, false, false); // apagar
-        return;
-    }
+        // Verifica checksum
+        crc.restart();
+        for (int i = 0; i < 6; i++) {
+            crc.add(buf[i]);
+        }
+        uint8_t result = crc.getCRC();
 
-    if (secuencia >= TOTAL_PAQUETES) {
-      Serial.println("Cabecera fuera de rango");
-      encenderColor(true, false, false); //rojo
-      delay(100);
-      encenderColor(false, false, false);
-      return;
-    }
+        if (buf[6] != result) {
+            Serial.println("Checksum inválido");
+            encenderColor(true, false, false); // rojo
+            delay(100);
+            encenderColor(false, false, false); // apagar
+            return;
+        }
 
-    if (!recibido[secuencia]) {
-        imagenReconstruida[secuencia][0] = buf[3];
-        imagenReconstruida[secuencia][1] = buf[4];
-        imagenReconstruida[secuencia][2] = buf[5];
-        recibido[secuencia] = true;
-        recibidosTotales++;
-        // Indicador visual
-        Serial.println("Paquete recibido!");
-        Serial.println("Faltan: ");
-        Serial.println(TOTAL_PAQUETES - recibidosTotales);
-        encenderColor(false, true, false); // verde
-        delay(100);
-        encenderColor(false, false, false); // apagar
-    }
+        if (secuencia >= TOTAL_PAQUETES) {
+            Serial.println("Cabecera fuera de rango");
+            encenderColor(true, false, false); //rojo
+            delay(100);
+            encenderColor(false, false, false);
+            return;
+        }
 
-    // Cuando se hayan recibido todos
-    if (recibidosTotales == TOTAL_PAQUETES) {
-        convertirA32x32();
-        imprimirImagen();
-        encenderColor(false, true, false);
-        Serial.println("Imagen completa.");
-        while (1);  // Detener loop
+        if (!recibido[secuencia]) {
+            imagenReconstruida[secuencia][0] = buf[3];
+            imagenReconstruida[secuencia][1] = buf[4];
+            imagenReconstruida[secuencia][2] = buf[5];
+            recibido[secuencia] = true;
+            recibidosTotales++;
+
+            // Indicador visual
+            int faltan = TOTAL_PAQUETES - recibidosTotales;
+            Serial.print("Paquete recibido! Faltan: ");
+            Serial.println(faltan);
+
+            // Actualiza el LCD
+            lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print("Faltan:");
+            lcd.setCursor(8, 0);
+            lcd.print(faltan);
+            
+            // Serial.print("Paquete ");
+            // Serial.print(secuencia);
+            // Serial.println(" recibido!");
+            // Serial.print("Faltan: ");
+            // Serial.println(TOTAL_PAQUETES - recibidosTotales);
+            encenderColor(false, true, false); // verde
+            delay(100);
+            encenderColor(false, false, false); // apagar
+        }
+
+        // Cuando se hayan recibido todos
+        if (recibidosTotales == TOTAL_PAQUETES) {
+            convertirA32x32();
+            imprimirImagen();
+            encenderColor(false, true, false);
+            Serial.println("Imagen completa.");
+            while (1);  // Detener loop
+        }
     }
 }
