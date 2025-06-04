@@ -96,36 +96,26 @@ void setup(){
     Serial.begin(9600);
     Serial.println("configurando envio");
 }
-
 void loop() {
-  // Mostrar la imagen reconstruida en consola (opcional)
   convertirA32x32();
   imprimirImagen();
-  while(true){
-
-    //crc.restart();
+  
+  while (true) {
     for (int i = 0; i < TOTAL_PAQUETES; i++) {
       byte paquete[7];
 
-      paquete[0] = 0x00 + i;  // aumentamos en 1 la cabecera cada vez
+      paquete[0] = 0x00 + i;
       paquete[1] = ID_EMISOR;
       paquete[2] = ID_RECEPTOR;
       paquete[3] = imagenYinYang[i][0];
       paquete[4] = imagenYinYang[i][1];
       paquete[5] = imagenYinYang[i][2];
 
-      // Checksum
-      //for (int j = 0; j < 6; j++) {
-      //  crc.add(paquete[j]);
-      //}
-      //paquete[6] = crc.getCRC();
-
-      // Checksum
-      byte checksum = 0;
+      crc.restart();
       for (int j = 0; j < 6; j++) {
-        checksum += paquete[j];
+        crc.add(paquete[j]);
       }
-      paquete[6] = checksum % 256;
+      paquete[6] = crc.getCRC();
 
       vw_send(paquete, sizeof(paquete));
       vw_wait_tx();
@@ -138,6 +128,5 @@ void loop() {
     }
 
     Serial.println("Transmisión finalizada.");
-
   }
 }
