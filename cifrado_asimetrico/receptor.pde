@@ -25,29 +25,11 @@ bool recibido[TOTAL_PAQUETES] = {false};
 int recibidosTotales = 0;
 int recibidosEfectivos = 0;
 
-// Matriz de imagen reconstruida
-bool imagenFinal[32][32];  // Matriz binaria: 1 = negro, 0 = blanco
+// Simulación de descifrado asimétrico
+const uint8_t CLAVE_PRIVADA = 77;
 
-void convertirA32x32() {
-  int bitIndex = 0;  // Contador global de bits
-
-  for (int fila = 0; fila < TOTAL_PAQUETES && bitIndex < 1024; fila++) {
-    for (int byte = 0; byte < 3; byte++) {
-      for (int bit = 7; bit >= 0; bit--) {
-        if (bitIndex >= 1024) break;  // Solo llenar 1024 bits
-
-        // Extrae el bit actual (1 o 0)
-        bool pixel = (imagenReconstruida[fila][byte] >> bit) & 0x01;
-
-        // Convierte el índice lineal a coordenadas 2D
-        int fila32 = bitIndex / 32;
-        int col32 = bitIndex % 32;
-
-        imagenFinal[fila32][col32] = pixel;  // Guarda como 0 o 1
-        bitIndex++;
-      }
-    }
-  }
+uint8_t descifrarSimulado(uint8_t byte) {
+  return (byte - 1) ^ CLAVE_PRIVADA;
 }
 
 void encenderColor(bool r, bool g, bool b) {
@@ -57,9 +39,17 @@ void encenderColor(bool r, bool g, bool b) {
 }
 
 void imprimirImagen() {
-  for (int i = 0; i < 32; i++) {
-    for (int j = 0; j < 32; j++) {
-      Serial.print(imagenFinal[i][j] ? "█" : " ");
+  int bitIndex = 0;
+
+  for (int fila = 0; fila < 32; fila++) {
+    for (int col = 0; col < 32; col++) {
+      int filaOriginal = bitIndex / 24;
+      int byte = (bitIndex % 24) / 8;
+      int bit = 7 - (bitIndex % 8);
+
+      bool pixel = (imagenReconstruida[filaOriginal][byte] >> bit) & 0x01;
+      Serial.print(pixel ? "█" : " ");
+      bitIndex++;
     }
     Serial.println();
   }
@@ -138,9 +128,9 @@ void loop(){
     }
 
     if (!recibido[secuencia]) {
-      imagenReconstruida[secuencia][0] = buf[3];
-      imagenReconstruida[secuencia][1] = buf[4];
-      imagenReconstruida[secuencia][2] = buf[5];
+      imagenReconstruida[secuencia][0] = descifrarSimulado(buf[3]);
+      imagenReconstruida[secuencia][1] = descifrarSimulado(buf[4]);
+      imagenReconstruida[secuencia][2] = descifrarSimulado(buf[5]);
       recibido[secuencia] = true;
       recibidosTotales++;
       recibidosEfectivos++;
@@ -172,7 +162,6 @@ void loop(){
         float bitrate_efectivo = (recibidosEfectivos * 3 * 8) / transcurrido;  // bits/s
 
         // Mostrar imagen
-        convertirA32x32();
         imprimirImagen();
 
         // Mostrar informacion en el lcd
@@ -180,7 +169,7 @@ void loop(){
         lcd.setCursor(0, 0);
         lcd.print("Velocidad Canal:");
         lcd.setCursor(0, 1);
-        lcd.print(velocidad_canal);
+        lcd.print(velocidad_paquetes);
         lcd.setCursor(5, 1);
         lcd.print("P/s");
 
@@ -189,11 +178,11 @@ void loop(){
         // Mostrar metricas en pantalla
         Serial.println("Imagen completa.");
         Serial.print("Velocidad en Paquetes por segundo: ");
-        Serial.print(velocidad_canal); Serial.prtintln(" P/s");
+        Serial.print(velocidad_paquetes); Serial.println(" P/s");
         Serial.print("Tasa de paquete recibidos correctamente: ");
         Serial.print(eficiencia*100); Serial.println("%");
         Serial.print("BitRate efectivo"); Serial.print(bitrate_efectivo);
-        Serial.println("Bits/s") 
+        Serial.println("Bits/s");
         while (1);  // Detener loop
     }
   }

@@ -1,4 +1,3 @@
-
 #include <VirtualWire.h>
 #include <CRC.h>
 
@@ -7,6 +6,8 @@ const byte CABECERA = 0xAA;
 const byte ID_EMISOR = 0x01;
 const byte ID_RECEPTOR = 0x02;
 uint8_t imagenFinal[32][32];  // Matriz binaria: 1 = negro, 0 = blanco
+const uint8_t CLAVE_CESAR = 78;  // Debe ser igual al del emisor
+
 
 // CRC8
 CRC8 crc;
@@ -58,6 +59,10 @@ const uint8_t imagenYinYang[43][3] = {
   {0b00000000, 0b00000000, 0b00000000},
 };
 
+// Cifrado César (adelanta cada byte 'clave' posiciones)
+uint8_t cifrarCesar(uint8_t byte, uint8_t clave) {
+  return byte + clave; //le sumamos la clave al byte, uint8 manejar desbordamiento automaticamente
+}
 
 void convertirA32x32() {
   int bitIndex = 0;
@@ -107,9 +112,9 @@ void loop() {
       paquete[0] = 0x00 + i;
       paquete[1] = ID_EMISOR;
       paquete[2] = ID_RECEPTOR;
-      paquete[3] = imagenYinYang[i][0];
-      paquete[4] = imagenYinYang[i][1];
-      paquete[5] = imagenYinYang[i][2];
+      paquete[3] = cifrarCesar(imagenYinYang[i][0], CLAVE_CESAR);
+      paquete[4] = cifrarCesar(imagenYinYang[i][1], CLAVE_CESAR);
+      paquete[5] = cifrarCesar(imagenYinYang[i][2], CLAVE_CESAR);
 
       crc.restart();
       for (int j = 0; j < 6; j++) {
