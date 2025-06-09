@@ -73,7 +73,7 @@ void imprimirImagen() {
       int byte = (bitIndex % 24) / 8;
       int bit = 7 - (bitIndex % 8);
 
-      bool pixel = (imagenReconstruida[filaOriginal][byte] >> bit) & 0x01;
+      bool pixel = (imagenYinYang[filaOriginal][byte] >> bit) & 0x01;
       Serial.print(pixel ? "█" : " ");
       bitIndex++;
     }
