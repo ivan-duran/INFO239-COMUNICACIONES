@@ -5,7 +5,6 @@
 const byte CABECERA = 0xAA;
 const byte ID_EMISOR = 0x01;
 const byte ID_RECEPTOR = 0x02;
-uint8_t imagenFinal[32][32];  // Matriz binaria: 1 = negro, 0 = blanco
 const uint8_t CLAVE_CESAR = 78;  // Debe ser igual al del emisor
 
 
@@ -64,35 +63,22 @@ uint8_t cifrarCesar(uint8_t byte, uint8_t clave) {
   return byte + clave; //le sumamos la clave al byte, uint8 manejar desbordamiento automaticamente
 }
 
-void convertirA32x32() {
+void imprimirImagen() {
   int bitIndex = 0;
 
-  for (int fila = 0; fila < TOTAL_PAQUETES && bitIndex < 1024; fila++) {
-    for (int byte = 0; byte < 3; byte++) {
-      for (int bit = 7; bit >= 0; bit--) {
-        if (bitIndex >= 1024) break;
+  for (int fila = 0; fila < 32; fila++) {
+    for (int col = 0; col < 32; col++) {
+      int filaOriginal = bitIndex / 24;
+      int byte = (bitIndex % 24) / 8;
+      int bit = 7 - (bitIndex % 8);
 
-        bool pixel = (imagenYinYang[fila][byte] >> bit) & 0x01;
-
-        int fila32 = bitIndex / 32;
-        int col32 = bitIndex % 32;
-
-        imagenFinal[fila32][col32] = pixel;
-        bitIndex++;
-      }
-    }
-  }
-}
-
-void imprimirImagen() {
-  for (int i = 0; i < 32; i++) {
-    for (int j = 0; j < 32; j++) {
-      Serial.print(imagenFinal[i][j] ? "█" : " ");
+      bool pixel = (imagenYinYang[filaOriginal][byte] >> bit) & 0x01;
+      Serial.print(pixel ? "█" : " ");
+      bitIndex++;
     }
     Serial.println();
   }
 }
-
 
 void setup(){
     vw_set_ptt_inverted(true);
@@ -102,7 +88,6 @@ void setup(){
     Serial.println("configurando envio");
 }
 void loop() {
-  convertirA32x32();
   imprimirImagen();
   
   while (true) {
